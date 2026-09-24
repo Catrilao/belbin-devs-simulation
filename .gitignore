@@ -1,0 +1,28 @@
+# Nix y Entornos
+.direnv/
+.venv/
+.env/
+
+# C++ y Compilación
+simulator/build/
+compile_commands.json
+*.o
+*.exe
+
+# Python y Orquestación
+__pycache__/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.ipynb_checkpoints/
+.cache/
+
+# Experimentos
+experiments/*/outputs/*
+!experiments/*/outputs/.gitkeep
+
+# Datasets
+datasets/raw/*
+!datasets/raw/.gitkeep
+datasets/processed/*
+!datasets/processed/.gitkeep
