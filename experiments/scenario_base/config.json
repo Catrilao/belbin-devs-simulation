@@ -1,0 +1,135 @@
+{
+  "team": [
+    {
+      "member_id": "Juan",
+      "primary_role": "specialist",
+      "secondary_role": "teamworker"
+    },
+    {
+      "member_id": "Maria",
+      "primary_role": "coordinator",
+      "secondary_role": "implementer"
+    },
+    {
+      "member_id": "Charlot",
+      "primary_role": "monitor_evaluator",
+      "secondary_role": "specialist"
+    },
+    {
+      "member_id": "Antonio",
+      "primary_role": "coordinator",
+      "secondary_role": "plant"
+    },
+    {
+      "member_id": "Marcelo",
+      "primary_role": "shaper",
+      "secondary_role": "implementer"
+    },
+    {
+      "member_id": "Joel",
+      "primary_role": "plant",
+      "secondary_role": "completer_finisher"
+    }
+  ],
+  "affinity_matrix": {
+    "plant": {
+      "resource_investigator": 2.0,
+      "teamworker": 2.0,
+      "coordinator": 4.0,
+      "plant": 3.0,
+      "monitor_evaluator": 3.0,
+      "specialist": 3.0,
+      "shaper": 3.0,
+      "implementer": 3.0,
+      "completer_finisher": 3.0
+    },
+    "monitor_evaluator": {
+      "resource_investigator": 5.0,
+      "teamworker": 1.0,
+      "coordinator": 3.0,
+      "plant": 3.0,
+      "monitor_evaluator": 3.0,
+      "specialist": 3.0,
+      "shaper": 3.0,
+      "implementer": 3.0,
+      "completer_finisher": 3.0
+    },
+    "specialist": {
+      "resource_investigator": 2.0,
+      "teamworker": 1.0,
+      "coordinator": 3.0,
+      "plant": 3.0,
+      "monitor_evaluator": 3.0,
+      "specialist": 3.0,
+      "shaper": 3.0,
+      "implementer": 3.0,
+      "completer_finisher": 3.0
+    },
+    "shaper": {
+      "resource_investigator": 2.0,
+      "teamworker": 1.0,
+      "coordinator": 3.0,
+      "plant": 3.0,
+      "monitor_evaluator": 3.0,
+      "specialist": 3.0,
+      "shaper": 3.0,
+      "implementer": 3.0,
+      "completer_finisher": 3.0
+    },
+    "implementer": {
+      "resource_investigator": 2.0,
+      "teamworker": 1.0,
+      "coordinator": 3.0,
+      "plant": 3.0,
+      "monitor_evaluator": 3.0,
+      "specialist": 3.0,
+      "shaper": 3.0,
+      "implementer": 3.0,
+      "completer_finisher": 3.0
+    },
+    "completer_finisher": {
+      "resource_investigator": 2.0,
+      "teamworker": 1.0,
+      "coordinator": 3.0,
+      "plant": 3.0,
+      "monitor_evaluator": 3.0,
+      "specialist": 3.0,
+      "shaper": 3.0,
+      "implementer": 3.0,
+      "completer_finisher": 3.0
+    },
+    "coordinator": {
+      "resource_investigator": 2.0,
+      "teamworker": 1.0,
+      "coordinator": 3.0,
+      "plant": 3.0,
+      "monitor_evaluator": 3.0,
+      "specialist": 3.0,
+      "shaper": 3.0,
+      "implementer": 3.0,
+      "completer_finisher": 3.0
+    },
+    "teamworker": {
+      "resource_investigator": 2.0,
+      "teamworker": 1.0,
+      "coordinator": 3.0,
+      "plant": 3.0,
+      "monitor_evaluator": 3.0,
+      "specialist": 3.0,
+      "shaper": 3.0,
+      "implementer": 3.0,
+      "completer_finisher": 3.0
+    },
+    "resource_investigator": {
+      "resource_investigator": 2.0,
+      "teamworker": 1.0,
+      "coordinator": 3.0,
+      "plant": 3.0,
+      "monitor_evaluator": 3.0,
+      "specialist": 3.0,
+      "shaper": 3.0,
+      "implementer": 3.0,
+      "completer_finisher": 3.0
+    }
+  }
+}

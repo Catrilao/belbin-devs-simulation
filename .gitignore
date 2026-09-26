@@ -21,8 +21,8 @@ __pycache__/
 experiments/*/outputs/*
 !experiments/*/outputs/.gitkeep
 
-# Datasets
-datasets/raw/*
-!datasets/raw/.gitkeep
-datasets/processed/*
-!datasets/processed/.gitkeep
+# Data
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
