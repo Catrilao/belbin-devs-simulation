@@ -12,9 +12,9 @@
     system = "x86_64-linux";
     pkgs = nixpkgs.legacyPackages.${system};
     cadmium-src = pkgs.fetchgit {
-      url = "https://github.com/SimulationEverywhere/cadmium.git";
-      rev = "72a11341aa684010caf1ca5dee779f0e7e84dfe9";
-      hash = "sha256-NXCEULBILIg5pO0o6YO6XuWVnC31akOrHu7NDzXaSx4=";
+      url = "https://github.com/SimulationEverywhere/cadmium_v2.git";
+      rev = "f0f3ed248f4f847b819a0e07e5865136b1d23cc9";
+      hash = "sha256-Fc/UyT9dPJ/xxSdAzgpZgfbPlP8K2J4O+UEH0K2a3+M=";
       fetchSubmodules = true;
     };
   in {
@@ -40,6 +40,7 @@
         export UV_PYTHON="${pkgs.python3}/bin/python3"
         export CADMIUM_ROOT="${cadmium-src}"
         uv sync --project orchestration
+        export PATH="$PWD/orchestration/.venv/bin:$PATH"
       '';
     };
   };
