@@ -1,59 +1,40 @@
 #include "atomics/member.hpp"
-#include <NDTime.hpp>
-#include <cadmium/engine/pdevs_dynamic_runner.hpp>
-#include <cadmium/logger/common_loggers.hpp>
-#include <cadmium/modeling/dynamic_coupled.hpp>
-#include <cadmium/modeling/dynamic_model.hpp>
-#include <cadmium/modeling/dynamic_model_translator.hpp>
-#include <cadmium/modeling/ports.hpp>
-#include <fstream>
+#include <cadmium/core/logger/csv.hpp>
+#include <cadmium/core/modeling/coupled.hpp>
+#include <cadmium/core/simulation/root_coordinator.hpp>
+#include <filesystem>
 #include <iostream>
+#include <limits>
 
-using namespace std;
-using namespace cadmium;
-using TIME = NDTime;
+using namespace cadmium::belbin;
 
-int main() {
-  shared_ptr<dynamic::modeling::model> member1 =
-      dynamic::translate::make_dynamic_atomic_model<Member, TIME>("member1");
+//! Coupled model for the entire team
+struct Team : public cadmium::Coupled {
+  explicit Team(const std::string &id) : Coupled(id) {
+    auto member1 = addComponent<Member>("member1");
+  }
+};
 
-  dynamic::modeling::Ports iports_TOP = {};
-  dynamic::modeling::Ports oports_TOP = {};
-  dynamic::modeling::Models submodels_TOP = {member1};
-  dynamic::modeling::EICs eics_TOP = {};
-  dynamic::modeling::EOCs eocs_TOP = {};
-  dynamic::modeling::ICs ics_TOP = {};
+int main(int argc, char *argv[]) {
+  if (argc != 3) {
+    std::cerr << "Usage: " << argv[0] << " <config.json> <output_dir>\n";
+    return 1;
+  }
 
-  shared_ptr<dynamic::modeling::coupled<TIME>> TOP;
-  TOP = make_shared<dynamic::modeling::coupled<TIME>>(
-      "TOP", submodels_TOP, iports_TOP, oports_TOP, eics_TOP, eocs_TOP,
-      ics_TOP);
+  std::filesystem::path config_path = argv[1];
+  std::filesystem::path output_dir = argv[2];
+  std::filesystem::create_directory(output_dir);
 
-  static ofstream out_messages("simulation_results/output_messages.txt");
-  struct oss_sink_messages {
-    static ostream &sink() { return out_messages; };
-  };
+  auto model = std::make_shared<Team>("team");
+  auto rootCoordinator = cadmium::RootCoordinator(model);
 
-  static ofstream out_state("simulation_results/output_state.txt");
-  struct oss_sink_state {
-    static ostream &sink() { return out_state; };
-  };
+  auto logger = std::make_shared<cadmium::CSVLogger>(
+      (output_dir / "output_log.csv").string(), ";");
+  rootCoordinator.setLogger(logger);
 
-  using state =
-      logger::logger<logger::logger_state, dynamic::logger::formatter<TIME>,
-                     oss_sink_state>;
-  using log_messages =
-      logger::logger<logger::logger_messages, dynamic::logger::formatter<TIME>,
-                     oss_sink_messages>;
-  using global_time_mes =
-      logger::logger<logger::logger_global_time,
-                     dynamic::logger::formatter<TIME>, oss_sink_messages>;
-  using global_time_sta =
-      logger::logger<logger::logger_global_time,
-                     dynamic::logger::formatter<TIME>, oss_sink_state>;
-  using logger_top = logger::multilogger<state, log_messages, global_time_mes,
-                                         global_time_sta>;
+  rootCoordinator.start();
+  rootCoordinator.simulate(std::numeric_limits<double>::infinity());
+  rootCoordinator.stop();
 
-  dynamic::engine::runner<NDTime, logger_top> r(TOP, {0});
-  r.run_until_passivate();
+  return 0;
 }

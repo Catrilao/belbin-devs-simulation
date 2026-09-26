@@ -33,7 +33,7 @@ target_include_directories(simulation PRIVATE
 
 target_include_directories(simulation SYSTEM PRIVATE
     ${CADMIUM_ROOT}/include
-    ${CADMIUM_ROOT}/DESTimes/include
+    ${CADMIUM_ROOT}/json/include
 )
 
 target_link_libraries(simulation PRIVATE Boost::headers)

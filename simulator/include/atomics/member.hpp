@@ -1,67 +1,50 @@
 #ifndef MEMBER_HPP
 #define MEMBER_HPP
 
-#include <cadmium/modeling/message_bag.hpp>
-#include <cadmium/modeling/ports.hpp>
-
+#include <cadmium/core/modeling/atomic.hpp>
 #include <limits>
-#include <sstream>
 
-using namespace cadmium;
-using namespace std;
+namespace cadmium::belbin {
 
-struct Member_defs {
-  struct in : public in_port<int> {};
-  struct out : public out_port<int> {};
+//! Team member's state
+struct MemberState {
+  bool active;
+  MemberState() : active(false) {}
 };
 
-template <typename TIME> class Member {
+//! Insertion operator, used automatically by Atomic<S>::logState()
+inline std::ostream &operator<<(std::ostream &out, const MemberState &s) {
+  out << "active: " << s.active;
+  return out;
+}
+
+//! Atomic DEVS model for a team member
+class Member : public Atomic<MemberState> {
 public:
-  using input_ports = tuple<typename Member_defs::in>;
-  using output_ports = tuple<typename Member_defs::out>;
+  Port<int> in;
+  Port<int> out;
 
-  struct state_type {
-    bool active;
-  };
-  state_type state;
+  explicit Member(const std::string &id)
+      : Atomic<MemberState>(id, MemberState()) {
+    in = addInPort<int>("in");
+    out = addOutPort<int>("out");
+  }
 
-  Member() noexcept { state.active = false; };
+  void internalTransition(MemberState &s) const override { s.active = false; }
 
-  void internal_transition() { state.active = false; };
+  void externalTransition(MemberState &s, double e) const override {
+    s.active = true;
+  }
 
-  void external_transition(TIME e,
-                           typename make_message_bags<input_ports>::type mbs) {
-    vector<int> bag_port_in = get_messages<typename Member_defs::in>(mbs);
-    state.active = true;
-  };
+  void output(const MemberState &s) const override {
+    // TODO: add behavior
+  }
 
-  void
-  confluence_transition(TIME e,
-                        typename make_message_bags<input_ports>::type mbs) {
-    internal_transition();
-    external_transition(TIME(), std::move(mbs));
-  };
-
-  typename make_message_bags<output_ports>::type output() const {
-    typename make_message_bags<output_ports>::type bags;
-    return bags;
-  };
-
-  TIME time_advance() const {
-    TIME next_interval;
-    if (state.active) {
-      next_interval = TIME("00:00:01:0000");
-    } else {
-      next_interval = numeric_limits<TIME>::infinity();
-    }
-    return next_interval;
-  };
-
-  friend ostringstream &operator<<(ostringstream &os,
-                                   const typename Member<TIME>::state_type &i) {
-    os << "active" << i.active;
-    return os;
-  };
+  [[nodiscard]] double timeAdvance(const MemberState &s) const override {
+    return s.active ? 1.0 : std::numeric_limits<double>::infinity();
+  }
 };
 
-#endif // MEMBER_HPP
+} // namespace cadmium::belbin
+
+#endif
