@@ -1,7 +1,9 @@
-from pydantic import BaseModel
-from enum import Enum
+from enum import StrEnum
 
-class BelbinRole(str, Enum):
+from pydantic import BaseModel
+
+
+class BelbinRole(StrEnum):
     PLANT = "plant"
     MONITOR_EVALUATOR = "monitor_evaluator"
     SPECIALIST = "specialist"
@@ -12,10 +14,12 @@ class BelbinRole(str, Enum):
     TEAMWORKER = "teamworker"
     RESOURCE_INVESTIGATOR = "resource_investigator"
 
+
 class TeamMember(BaseModel):
     member_id: str
     primary_role: BelbinRole
     secondary_role: BelbinRole | None = None
+
 
 class Interaction(BaseModel):
     source: str

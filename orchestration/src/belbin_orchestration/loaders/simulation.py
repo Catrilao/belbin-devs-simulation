@@ -1,5 +1,7 @@
 from pathlib import Path
-from belbin_analysis.models import Interaction
+
+from belbin_orchestration.models import Interaction
+
 
 def load_simulation_output(run_dir: Path) -> list[Interaction]:
     """Reads the output of a simulation run and returns the interactions"""
