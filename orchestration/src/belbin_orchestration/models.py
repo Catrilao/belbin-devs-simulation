@@ -18,7 +18,9 @@ class BelbinRole(StrEnum):
 class TeamMember(BaseModel):
     member_id: str
     primary_role: BelbinRole
-    secondary_role: BelbinRole | None = None
+    secondary_role: BelbinRole
+    primary_weight: float
+    secondary_weight: float
 
 
 class Interaction(BaseModel):

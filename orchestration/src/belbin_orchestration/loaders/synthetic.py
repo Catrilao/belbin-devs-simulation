@@ -19,11 +19,12 @@ ROLE_TRANSLATION = {
 
 
 class SimulationConfig(BaseModel):
+    global_seed: int
     team: list[TeamMember]
     affinity_matrix: dict[BelbinRole, dict[BelbinRole, float]]
 
 
-def load_synthetic_scenario(json_path: Path, txt_path: Path) -> SimulationConfig:
+def load_synthetic_scenario(json_path: Path, txt_path: Path, seed: int = 29) -> SimulationConfig:
     with open(json_path) as f:
         raw_members = json.load(f)
 
@@ -34,6 +35,8 @@ def load_synthetic_scenario(json_path: Path, txt_path: Path) -> SimulationConfig
                 member_id=raw["nombre"],
                 primary_role=ROLE_TRANSLATION[raw["personalidad1"]],
                 secondary_role=ROLE_TRANSLATION[raw["personalidad2"]],
+                primary_weight=float(raw["porcentaje1"]),
+                secondary_weight=float(raw["porcentaje2"]),
             )
         )
 
@@ -54,7 +57,7 @@ def load_synthetic_scenario(json_path: Path, txt_path: Path) -> SimulationConfig
 
             affinity_matrix[role_a][role_b] = weight
 
-    return SimulationConfig(team=team, affinity_matrix=affinity_matrix)
+    return SimulationConfig(global_seed=seed, team=team, affinity_matrix=affinity_matrix)
 
 
 if __name__ == "__main__":
