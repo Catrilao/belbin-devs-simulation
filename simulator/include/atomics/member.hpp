@@ -1,158 +1,173 @@
 #ifndef MEMBER_HPP
 #define MEMBER_HPP
 
+#include "types.hpp"
+#include <algorithm>
 #include <cadmium/core/modeling/atomic.hpp>
+#include <cmath>
 #include <limits>
-#include <nlohmann/json.hpp>
+#include <memory>
+#include <numeric>
 #include <random>
+#include <set>
+#include <string>
 
 namespace cadmium::belbin {
-using json = nlohmann::json;
 
-//! Token passed between team members
-struct Token {
-  std::string sender;
-  std::string target;
+struct PlannedAction {
+  bool active = false;
+  EventType type = EventType::StartTalking;
+  std::string target = "Group";
 };
 
-inline std::ostream &operator<<(std::ostream &out, const Token &t) {
-  out << "[" << t.sender << " -> " << t.target << "]";
-  return out;
-}
-
-//! Information about the rest of the team
-struct TeamRoster {
-  json affinity_matrix;
-  json members_data;
-};
-
-//! Team member's state
+//! Team member's structured state
 struct MemberState {
-  bool active;
+  Phase phase = Phase::Silent;
+  double sigma = std::numeric_limits<double>::infinity();
+  std::set<std::string> active_speakers;
   std::string previous_speaker;
-  std::string next_speaker;
-  MemberState() : active(false), previous_speaker(""), next_speaker("") {}
+  double accumulated_talk_time = 0.0;
+  PlannedAction planned_action;
 };
 
 inline std::ostream &operator<<(std::ostream &out, const MemberState &s) {
-  out << "active: " << s.active << " | rep: " << s.previous_speaker;
+  out << "phase: " << toString(s.phase) << " | sigma: " << s.sigma
+      << " | prev: " << s.previous_speaker;
   return out;
 }
 
 //! Atomic DEVS model for a team member
 class Member : public Atomic<MemberState> {
 public:
-  Port<Token> in;
-  Port<Token> out;
+  Port<Message> in;
+  Port<Message> out;
 
-  std::string member_id;
-  json data;
-  std::shared_ptr<TeamRoster> roster;
-
+  MemberConfig config;
+  std::shared_ptr<const TeamRoster> roster;
   mutable std::mt19937 rng;
 
-  explicit Member(const std::string &id, const json &input_data,
-                  std::shared_ptr<TeamRoster> shared_roster, size_t global_seed)
-      : Atomic<MemberState>(id, MemberState()), member_id(id), data(input_data),
-        roster(shared_roster) {
-    in = addInPort<Token>("in");
-    out = addOutPort<Token>("out");
-    rng.seed(std::hash<std::string>{}(member_id) ^ global_seed);
+  explicit Member(const std::string &id, const MemberConfig &member_config,
+                  std::shared_ptr<const TeamRoster> shared_roster,
+                  size_t global_seed, bool starts_first = false)
+      : Atomic<MemberState>(id, MemberState()), config(member_config),
+        roster(std::move(shared_roster)) {
+    in = addInPort<Message>("in");
+    out = addOutPort<Message>("out");
+    rng.seed(std::hash<std::string>{}(member_config.member_id) ^ global_seed);
+
+    if (starts_first) {
+      state.planned_action = {true, EventType::StartTalking,
+                              selectNextSpeaker()};
+      state.sigma = roster->reaction_delay_s;
+    }
   }
 
-  void internalTransition(MemberState &s) const override { s.active = false; }
+  void internalTransition(MemberState &s) const override {
+    if (!s.planned_action.active) {
+      s.sigma = std::numeric_limits<double>::infinity();
+      return;
+    }
+
+    if (s.planned_action.type == EventType::StartTalking) {
+      s.phase = Phase::Talking;
+      s.sigma = computeSpeakingDuration(s.previous_speaker);
+      s.planned_action.type = EventType::StopTalking;
+    } else if (s.planned_action.type == EventType::StopTalking) {
+      s.accumulated_talk_time += s.sigma;
+      s.phase = Phase::Silent;
+      s.sigma = std::numeric_limits<double>::infinity();
+      s.planned_action.active = false;
+    }
+  }
 
   void externalTransition(MemberState &s, double e) const override {
-    for (const auto &token : in->getBag()) {
-      if (token.target == member_id) {
-        s.active = true;
-        s.previous_speaker = token.sender;
+    if (std::isfinite(s.sigma)) {
+      s.sigma = std::max(0.0, s.sigma - e);
+    }
 
-        std::string p_role = data["primary_role"];
-        std::string s_role = data["secondary_role"];
-        double p_weight = data["primary_weight"].get<double>();
-        double s_weight = data["secondary_weight"].get<double>();
-        std::vector<std::string> candidates;
-        std::vector<double> probabilities;
+    for (const auto &msg : in->getBag()) {
+      if (msg.event_type == EventType::StartTalking) {
+        s.active_speakers.insert(msg.sender_id);
+      } else if (msg.event_type == EventType::StopTalking) {
+        s.active_speakers.erase(msg.sender_id);
 
-        for (const auto &m : roster->members_data) {
-          std::string candidate_id = m["member_id"];
-          if (member_id == candidate_id)
-            continue;
-
-          std::string candidate_p_role = m["primary_role"];
-          std::string candidate_s_role = m["secondary_role"];
-          double candidate_p_weight = m["primary_weight"].get<double>();
-          double candidate_s_weight = m["secondary_weight"].get<double>();
-
-          double score =
-              (roster->affinity_matrix[p_role][candidate_p_role].get<double>() *
-               p_weight * candidate_p_weight) +
-              (roster->affinity_matrix[p_role][candidate_s_role].get<double>() *
-               p_weight * candidate_s_weight) +
-              (roster->affinity_matrix[s_role][candidate_p_role].get<double>() *
-               s_weight * candidate_p_weight) +
-              (roster->affinity_matrix[s_role][candidate_s_role].get<double>() *
-               s_weight * candidate_s_weight);
-
-          candidates.push_back(candidate_id);
-          probabilities.push_back(score);
-        }
-
-        if (!candidates.empty()) {
-          std::discrete_distribution<> distribution(probabilities.begin(),
-                                                    probabilities.end());
-          s.next_speaker = candidates[distribution(rng)];
+        // TODO: agregar interrupciones, por ahora se respetan los turnos
+        if (msg.receiver_id == config.member_id && s.phase == Phase::Silent) {
+          s.previous_speaker = msg.sender_id;
+          s.planned_action = {true, EventType::StartTalking,
+                              selectNextSpeaker()};
+          s.sigma = roster->reaction_delay_s;
         }
       }
     }
+  }
+
+  void confluentTransition(MemberState &s, double /*e*/) const override {
+    internalTransition(s);
+    externalTransition(s, 0.0);
   }
 
   void output(const MemberState &s) const override {
-    if (!s.active || s.next_speaker.empty())
+    if (!s.planned_action.active) {
       return;
+    }
 
-    Token t{member_id, s.next_speaker};
-    out->addMessage(t);
+    Phase state_after = (s.planned_action.type == EventType::StopTalking)
+                            ? Phase::Silent
+                            : Phase::Talking;
+
+    out->addMessage(Message{s.planned_action.type, config.member_id,
+                            s.planned_action.target, state_after});
   }
 
   [[nodiscard]] double timeAdvance(const MemberState &s) const override {
-    if (!s.active)
-      return std::numeric_limits<double>::infinity();
+    return s.sigma;
+  }
 
-    if (s.previous_speaker == "Starter") {
-      return 2.5;
-    }
+  [[nodiscard]] const MemberState &currentState() const { return state; }
 
-    for (const auto &m : roster->members_data) {
-      if (m["member_id"] == s.previous_speaker) {
-        std::string prev_p_role = m["primary_role"];
-        std::string prev_s_role = m["secondary_role"];
-        double prev_p_weight = m["primary_weight"];
-        double prev_s_weight = m["secondary_weight"];
+private:
+  [[nodiscard]] std::string selectNextSpeaker() const {
+    std::vector<std::string> candidates;
+    std::vector<double> weights;
 
-        std::string p_role = data["primary_role"];
-        std::string s_role = data["secondary_role"];
-        double p_weight = data["primary_weight"].get<double>();
-        double s_weight = data["secondary_weight"].get<double>();
-
-        double p_affinity =
-            roster->affinity_matrix[prev_p_role][p_role].get<double>() *
-                p_weight +
-            roster->affinity_matrix[prev_p_role][s_role].get<double>() *
-                s_weight;
-        double s_affinity =
-            roster->affinity_matrix[prev_s_role][p_role].get<double>() *
-                p_weight +
-            roster->affinity_matrix[prev_s_role][s_role].get<double>() *
-                s_weight;
-
-        return ((p_affinity * prev_p_weight) + (s_affinity * prev_s_weight)) *
-               10.0; // NOTE: check scale, could be based on the role
+    for (const auto &peer : roster->members) {
+      if (peer.member_id == config.member_id) {
+        continue;
       }
+      double score = computeBilinearAffinity(config, peer, *roster);
+      candidates.push_back(peer.member_id);
+      weights.push_back(std::max(0.0, score));
     }
 
-    return 2.5;
+    if (candidates.empty()) {
+      return "Group";
+    }
+
+    double total = std::accumulate(weights.begin(), weights.end(), 0.0);
+    if (total <= 0.0) {
+      std::uniform_int_distribution<size_t> uniform(0, candidates.size() - 1);
+      return candidates[uniform(rng)];
+    }
+
+    std::discrete_distribution<size_t> dist(weights.begin(), weights.end());
+    return candidates[dist(rng)];
+  }
+
+  [[nodiscard]] double
+  computeSpeakingDuration(const std::string &prev_speaker) const {
+    if (prev_speaker.empty()) {
+      return roster->initial_talk_duration_s;
+    }
+
+    auto it = roster->member_index.find(prev_speaker);
+    if (it == roster->member_index.end()) {
+      return roster->initial_talk_duration_s;
+    }
+
+    double affinity = computeBilinearAffinity(it->second, config, *roster);
+    double duration = affinity * roster->duration_scale;
+    return std::max(roster->reaction_delay_s, duration);
   }
 };
 
