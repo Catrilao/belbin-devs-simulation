@@ -32,7 +32,7 @@
       };
 
       buildInputs = builtins.attrValues {
-        inherit (pkgs) boost;
+        inherit (pkgs) gtest;
       };
 
       shellHook = ''

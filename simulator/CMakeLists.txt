@@ -13,8 +13,6 @@ if(DEFINED ENV{IN_NIX_SHELL})
     set(CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES "")
 endif()
 
-find_package(Boost CONFIG REQUIRED)
-
 if(NOT DEFINED CADMIUM_ROOT)
     set(CADMIUM_ROOT $ENV{CADMIUM_ROOT})
 endif()
@@ -23,17 +21,27 @@ if(NOT CADMIUM_ROOT)
     message(FATAL_ERROR "CADMIUM_ROOT is not defined")
 endif()
 
-add_executable(simulation
-    src/main.cpp
+add_library(belbin_core INTERFACE)
+
+target_include_directories(belbin_core INTERFACE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_include_directories(simulation PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
+target_include_directories(belbin_core SYSTEM INTERFACE
+  ${CADMIUM_ROOT}/include
+  ${CADMIUM_ROOT}/json/include
 )
 
-target_include_directories(simulation SYSTEM PRIVATE
-    ${CADMIUM_ROOT}/include
-    ${CADMIUM_ROOT}/json/include
-)
+add_executable(simulation src/main.cpp)
+target_link_libraries(simulation PRIVATE belbin_core)
+target_compile_options(simulation PRIVATE -Wall -Wextra -Wpedantic)
 
-target_link_libraries(simulation PRIVATE Boost::headers)
+include(CTest)
+if(BUILD_TESTING)
+  find_package(GTest REQUIRED)
+  add_executable(belbin_tests tests/test_simulator.cpp)
+  target_link_libraries(belbin_tests PRIVATE belbin_core GTest::gtest_main)
+  target_compile_options(belbin_tests PRIVATE -Wall -Wextra -Wpedantic)
+  include(GoogleTest)
+  gtest_discover_tests(belbin_tests)
+endif()
